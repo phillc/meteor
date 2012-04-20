@@ -26,8 +26,7 @@ Package.on_use(function (api) {
   api.use('handlebars', 'client');
 });
 
-Package.register_extension(
-  "html", function (bundle, source_path, serve_path, where) {
+var parseResources = function (bundle, source_path, serve_path, where, contents) {
     if (where !== "client")
       // XXX might be nice to throw an error here, but then we'd have
       // to make it so that packages.js ignores html files that appear
@@ -36,14 +35,10 @@ Package.register_extension(
       // jsdom or something)
       return;
 
-    // XXX the way we deal with encodings here is sloppy .. should get
-    // religion on that
-    var contents = fs.readFileSync(source_path);
-
     // XXX super lame! we actually have to give paths relative to
     // app/inner/app.js, since that's who's evaling us.
     var html_scanner = require('../../packages/templating/html_scanner.js');
-    var results = html_scanner.scan(contents.toString('utf8'));
+    var results = html_scanner.scan(contents);
 
     if (results.head)
       bundle.add_resource({
@@ -77,6 +72,20 @@ Package.register_extension(
         where: where
       });
     }
+  }
+
+Package.register_extension(
+  "html", function (bundle, source_path, serve_path, where) {
+    var contents = fs.readFileSync(source_path).toString('utf8');
+    parseResources(bundle, source_path, serve_path, where, contents);
+  }
+);
+
+Package.register_extension(
+  "jade", function (bundle, source_path, serve_path, where) {
+    var jade = require("jade");
+    var contents = jade.compile(fs.readFileSync(source_path).toString('utf8'))();
+    parseResources(bundle, source_path, serve_path, where, contents);
   }
 );
 
